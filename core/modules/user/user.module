@@ -371,7 +371,8 @@ function user_user_view(array &$build, UserInterface $account, EntityViewDisplay
   if ($display->getComponent('member_for')) {
     $build['member_for'] = array(
       '#type' => 'item',
-      '#markup' => '<h4 class="label">' . t('Member for') . '</h4> ' . \Drupal::service('date.formatter')->formatTimeDiffSince($account->getCreatedTime()),
+      '#title' => t('Member for'),
+      '#markup' => \Drupal::service('date.formatter')->formatTimeDiffSince($account->getCreatedTime()),
     );
   }
 }
