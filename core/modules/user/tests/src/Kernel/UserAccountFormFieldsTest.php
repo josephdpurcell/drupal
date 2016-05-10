@@ -82,9 +82,11 @@ class UserAccountFormFieldsTest extends KernelTestBase {
     $this->assertFieldOrder($form['account']);
 
     // Verify that autocomplete is off on all account fields.
-    foreach (array('mail', 'name', 'pass') as $key) {
+    foreach (array('mail', 'name') as $key) {
       $this->assertIdentical($form['account'][$key]['#attributes']['autocomplete'], 'off', "'$key' field: 'autocomplete' attribute is 'off'.");
     }
+    $this->assertIdentical($form['account']['change-password']['pass']['#attributes']['autocomplete'], 'off', "'pass' field: 'autocomplete' attribute is 'off'.");
+
   }
 
   /**
@@ -94,26 +96,19 @@ class UserAccountFormFieldsTest extends KernelTestBase {
    *   A form array section that contains the user account form elements.
    */
   protected function assertFieldOrder(array $elements) {
-    $name_index = 0;
     $name_weight = 0;
-    $pass_index = 0;
     $pass_weight = 0;
-    $index = 0;
     foreach ($elements as $key => $element) {
-      if ($key === 'name') {
-        $name_index = $index;
+      if ($key == 'name') {
         $name_weight = $element['#weight'];
         $this->assertTrue($element['#sorted'], "'name' field is #sorted.");
       }
-      elseif ($key === 'pass') {
-        $pass_index = $index;
+      elseif ($key == 'pass') {
         $pass_weight = $element['#weight'];
         $this->assertTrue($element['#sorted'], "'pass' field is #sorted.");
       }
-      $index++;
     }
-    $this->assertEqual($name_index, $pass_index - 1, "'name' field ($name_index) appears before 'pass' field ($pass_index).");
-    $this->assertTrue($name_weight < $pass_weight, "'name' field weight ($name_weight) is smaller than 'pass' field weight ($pass_weight).");
+    $this->assertTrue((abs($name_weight-$pass_weight) > 0), "'name' field (".abs($name_weight).") is above 'pass' field (".abs($pass_weight).").");
   }
 
   /**

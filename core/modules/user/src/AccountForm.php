@@ -10,10 +10,12 @@ use Drupal\Core\Entity\Query\QueryFactory;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Url;
 use Drupal\language\ConfigurableLanguageManagerInterface;
 use Drupal\user\Plugin\LanguageNegotiation\LanguageNegotiationUser;
 use Drupal\user\Plugin\LanguageNegotiation\LanguageNegotiationUserAdmin;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 
 /**
  * Form controller for the user account forms.
@@ -87,6 +89,7 @@ abstract class AccountForm extends ContentEntityForm {
     // Also see \Drupal\user\Plugin\Validation\Constraint\UserMailRequired.
     $form['account']['mail'] = array(
       '#type' => 'email',
+      '#weight' => '1',
       '#title' => $this->t('Email address'),
       '#description' => $this->t('A valid email address. All emails from the system will be sent to this address. The email address is not made public and will only be used if you wish to receive a new password or wish to receive certain news or notifications by email.'),
       '#required' => !(!$account->getEmail() && $user->hasPermission('administer users')),
@@ -96,6 +99,7 @@ abstract class AccountForm extends ContentEntityForm {
     // Only show name field on registration form or user can change own username.
     $form['account']['name'] = array(
       '#type' => 'textfield',
+      '#weight' => '2',
       '#title' => $this->t('Username'),
       '#maxlength' => USERNAME_MAX_LENGTH,
       '#description' => $this->t("Several special characters are allowed, including space, period (.), hyphen (-), apostrophe ('), underscore (_), and the @ sign."),
@@ -113,10 +117,18 @@ abstract class AccountForm extends ContentEntityForm {
     // Display password field only for existing users or when user is allowed to
     // assign a password during registration.
     if (!$register) {
-      $form['account']['pass'] = array(
+      $form['account']['change-password'] = array(
+        '#type' => 'fieldset',
+        '#weight' => '3',
+        '#title' => $this->t('Change Password'),
+      );
+      $form['account']['change-password']['pass-note'] = array(
+        '#markup' => '<p>' . $this->t('To change the current user password, enter the new password in both fields.') . '</p>',
+      );
+      $form['account']['change-password']['pass'] = array(
         '#type' => 'password_confirm',
+        '#weight' => '5',
         '#size' => 25,
-        '#description' => $this->t('To change the current user password, enter the new password in both fields.'),
       );
 
       // To skip the current password field, the user must have logged in via a
@@ -133,9 +145,9 @@ abstract class AccountForm extends ContentEntityForm {
         $form['account']['current_pass'] = array(
           '#type' => 'password',
           '#title' => $this->t('Current password'),
-          '#size' => 25,
+          '#size' => 60,
           '#access' => !$form_state->get('user_pass_reset'),
-          '#weight' => -5,
+          '#weight' => 0,
           // Do not let web browsers remember this password, since we are
           // trying to confirm that the person submitting the form actually
           // knows the current one.
@@ -153,12 +165,21 @@ abstract class AccountForm extends ContentEntityForm {
           ));
         }
       }
+
     }
     elseif (!$config->get('verify_mail') || $admin) {
-      $form['account']['pass'] = array(
+      $form['account']['create-password'] = array(
+        '#weight' => '3',
+        '#type' => 'fieldset',
+        '#title' => $this->t('Select Password'),
+      );
+      $form['account']['create-password']['pass-note'] = array(
+        '#markup' => '<p>' . $this->t('Provide a password for the new account in both fields.') . '</p>',
+      );
+     $form['account']['create-password']['pass'] = array(
         '#type' => 'password_confirm',
+        '#weight' => '4',
         '#size' => 25,
-        '#description' => $this->t('Provide a password for the new account in both fields.'),
         '#required' => TRUE,
       );
     }
@@ -166,11 +187,12 @@ abstract class AccountForm extends ContentEntityForm {
     // When not building the user registration form, prevent web browsers from
     // autofilling/prefilling the email, username, and password fields.
     if ($this->getOperation() != 'register') {
-      foreach (array('mail', 'name', 'pass') as $key) {
+      foreach (array('mail', 'name') as $key) {
         if (isset($form['account'][$key])) {
           $form['account'][$key]['#attributes']['autocomplete'] = 'off';
         }
       }
+      $form['account']['change-password']['pass']['#attributes']['autocomplete'] = 'off';
     }
 
     if ($admin || !$register) {
@@ -180,22 +202,28 @@ abstract class AccountForm extends ContentEntityForm {
       $status = $config->get('register') == USER_REGISTER_VISITORS ? 1 : 0;
     }
 
-    $form['account']['status'] = array(
+    $roles = array_map(array('\Drupal\Component\Utility\Html', 'escape'), user_role_names(TRUE));
+    $role_access = ($roles && $user->hasPermission('administer permissions') ? TRUE : FALSE);
+    $form['account']['account-states'] = array(
+      '#type' => 'details',
+      '#weight' => '6',
+      '#title' => $this->t('Account Access Controls'),
+      '#open' => TRUE,
+      '#access' => ($admin || $role_access),
+    );
+    $form['account']['account-states']['status'] = array(
       '#type' => 'radios',
       '#title' => $this->t('Status'),
       '#default_value' => $status,
       '#options' => array($this->t('Blocked'), $this->t('Active')),
       '#access' => $admin,
     );
-
-    $roles = array_map(array('\Drupal\Component\Utility\Html', 'escape'), user_role_names(TRUE));
-
-    $form['account']['roles'] = array(
+    $form['account']['account-states']['roles'] = array(
       '#type' => 'checkboxes',
       '#title' => $this->t('Roles'),
       '#default_value' => (!$register ? $account->getRoles() : array()),
       '#options' => $roles,
-      '#access' => $roles && $user->hasPermission('administer permissions'),
+      '#access' => $role_access,
     );
 
     // Special handling for the inevitable "Authenticated user" role.
@@ -205,6 +233,7 @@ abstract class AccountForm extends ContentEntityForm {
     );
 
     $form['account']['notify'] = array(
+     '#weight' => '1.1',
       '#type' => 'checkbox',
       '#title' => $this->t('Notify user of new account'),
       '#access' => $register && $admin,
@@ -266,7 +295,6 @@ abstract class AccountForm extends ContentEntityForm {
     // use-cases where this synchronization is not desired, a module can alter
     // or remove this item.
     $form['#entity_builders']['sync_user_langcode'] = [$this, 'syncUserLangcode'];
-
     return parent::form($form, $form_state, $account);
   }
 
@@ -371,10 +399,57 @@ abstract class AccountForm extends ContentEntityForm {
       'preferred_langcode',
       'preferred_admin_langcode'
     );
-    foreach ($violations->getByFields($field_names) as $violation) {
-      list($field_name) = explode('.', $violation->getPropertyPath(), 2);
-      $form_state->setErrorByName($field_name, $violation->getMessage());
+
+    $routeName = \Drupal::request()->get(RouteObjectInterface::ROUTE_NAME);
+    if ($routeName == 'entity.user.edit_form') {
+     $parent_links = FALSE;
+      foreach ($violations->getByFields($field_names) as $violation) {
+        list($field_name) = explode('.', $violation->getPropertyPath(), 2);
+        $errors_on_parent = FALSE;
+        if ($field_name == 'pass') {
+          $errors_on_parent['pass']['name'] = $this->t('Change password');
+          $errors_on_parent['pass']['title'] = $this->t('current password');
+          $errors_on_parent['pass']['id'] = 'edit-pass-pass1';
+        }
+        if ($field_name == 'mail') {
+          $errors_on_parent['mail']['name'] = $this->t('Email address');
+          $errors_on_parent['mail']['title'] = $this->t('email address');
+          $errors_on_parent['mail']['id'] = 'edit-mail';
+        }
+        if ($errors_on_parent) {
+          foreach ($errors_on_parent as $field_name => $item) {
+            // Build link with fragment.
+            $url = Url::fromRoute('<current>', [], ['fragment' => $item['id']]);
+            $parent_links[] = \Drupal::l($item['name'], $url);
+          }
+          $password_url = Url::fromRoute('<current>', [], ['fragment' => 'edit-current-pass']);
+          $password_link = \Drupal::l($this->t('Current password'), $password_url);
+          $form_state->setErrorByName($field_name, $this->t("Your @current_password is missing or incorrect; it's required to change the @name.", array('@current_password' => $password_link, '@name' => $item['title'])));
+        }
+        else {
+          $form_state->setErrorByName($field_name, $violation->getMessage());
+        }
+      }
+      if ($parent_links) {
+        // It is expected that no more than 2 errors will be joined this way.
+        $message = $this->formatPlural(
+          count($parent_links),
+          '@first_error needs your current password in order to submit.',
+          '@first_error and @second_error need your current password in order to submit.',
+          array(
+            '@first_error' => $parent_links['0'],
+            '@second_error' => (isset($parent_links['1']) ? $parent_links['1'] : FALSE)
+          )
+        );
+        $form_state->setErrorByName('current_pass', $message);
+      }
+    } else {
+      foreach ($violations->getByFields($field_names) as $violation) {
+        list($field_name) = explode('.', $violation->getPropertyPath(), 2);
+        $form_state->setErrorByName($field_name, $violation->getMessage());
+      }
     }
+
     parent::flagViolations($violations, $form, $form_state);
   }
 

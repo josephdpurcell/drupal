@@ -42,7 +42,7 @@ class UserEditTest extends WebTestBase {
     $edit = array();
     $edit['mail'] = $this->randomMachineName() . '@new.example.com';
     $this->drupalPostForm("user/" . $user1->id() . "/edit", $edit, t('Save'));
-    $this->assertRaw(t("Your current password is missing or incorrect; it's required to change the %name.", array('%name' => t('Email'))));
+    $this->assertText(t("Your Current password is missing or incorrect; it's required to change the email address."));
 
     $edit['current_pass'] = $user1->pass_raw;
     $this->drupalPostForm("user/" . $user1->id() . "/edit", $edit, t('Save'));
@@ -53,7 +53,7 @@ class UserEditTest extends WebTestBase {
     $edit['pass[pass1]'] = $new_pass = $this->randomMachineName();
     $edit['pass[pass2]'] = $new_pass;
     $this->drupalPostForm("user/" . $user1->id() . "/edit", $edit, t('Save'));
-    $this->assertRaw(t("Your current password is missing or incorrect; it's required to change the %name.", array('%name' => t('Password'))));
+    $this->assertText(t("Your Current password is missing or incorrect; it's required to change the current password."));
 
     // Try again with the current password.
     $edit['current_pass'] = $user1->pass_raw;
