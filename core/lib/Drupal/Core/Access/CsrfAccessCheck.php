@@ -49,8 +49,20 @@ class CsrfAccessCheck implements RoutingAccessInterface {
   public function access(Route $route, Request $request, RouteMatchInterface $route_match) {
     $parameters = $route_match->getRawParameters();
     $path = ltrim($route->getPath(), '/');
+
+    $exclude_parameters = array();
+    if ($route->getOption('_csrf_exclude_parameters')) {
+      $exclude_parameters = $route->getOption('_csrf_exclude_parameters');
+    }
+
     // Replace the path parameters with values from the parameters array.
     foreach ($parameters as $param => $value) {
+
+      // Do not replace this parameter if it should not be used in the token.
+      if (in_array($param, $exclude_parameters)) {
+        continue;
+      }
+
       $path = str_replace("{{$param}}", $value, $path);
     }
 

@@ -34,8 +34,20 @@ class RouteProcessorCsrf implements OutboundRouteProcessorInterface {
   public function processOutbound($route_name, Route $route, array &$parameters, BubbleableMetadata $bubbleable_metadata = NULL) {
     if ($route->hasRequirement('_csrf_token')) {
       $path = ltrim($route->getPath(), '/');
+
+      $exclude_parameters = array();
+      if ($route->getOption('_csrf_exclude_parameters')) {
+        $exclude_parameters = $route->getOption('_csrf_exclude_parameters');
+      }
+
       // Replace the path parameters with values from the parameters array.
       foreach ($parameters as $param => $value) {
+
+        // Do not replace this parameter if it should not be used in the token.
+        if (in_array($param, $exclude_parameters)) {
+          continue;
+        }
+
         $path = str_replace("{{$param}}", $value, $path);
       }
       // Adding this to the parameters means it will get merged into the query

@@ -77,6 +77,28 @@ class RouteProcessorCsrfTest extends UnitTestCase {
   }
 
   /**
+   * Tests the processOutbound() method with CSRF parameter exclude.
+   */
+  public function processOutboundTokenExclude() {
+    $route = new Route('/test-path/{js}', array(), array('_csrf_token' => 'TRUE'), array('_csrf_exclude_parameters' => array('js')));
+    $parameters = array('js' => 'nojs');
+
+    $bubbleable_metadata = new BubbleableMetadata();
+    $this->processor->processOutbound('test', $route, $parameters, $bubbleable_metadata);
+    // 'token' should be added to the parameters array.
+    $this->assertArrayHasKey('token', $parameters);
+    // Bubbleable metadata of routes with a _csrf_token route requirement is a
+    // placeholder.
+    $path = 'test-path/ajax';
+    $placeholder = hash('sha1', $path);
+    $placeholder_render_array = [
+      '#lazy_builder' => ['route_processor_csrf:renderPlaceholderCsrfToken', [$path]],
+    ];
+    $this->assertSame($parameters['token'], $placeholder);
+    $this->assertEquals((new BubbleableMetadata())->setAttachments(['placeholders' => [$placeholder => $placeholder_render_array]]), $bubbleable_metadata);
+  }
+
+  /**
    * Tests the processOutbound() method with a dynamic path and one replacement.
    */
   public function testProcessOutboundDynamicOne() {
