@@ -157,8 +157,8 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
    */
   public function revisionOverview(NodeInterface $node) {
     $account = $this->currentUser();
-    $langcode = $this->languageManager()->getCurrentLanguage(LanguageInterface::TYPE_CONTENT)->getId();
-    $langname = $this->languageManager()->getLanguageName($langcode);
+    $langcode = $node->language()->getId();
+    $langname = $node->language()->getName();
     $languages = $node->getTranslationLanguages();
     $has_translations = (count($languages) > 1);
     $node_storage = $this->entityManager()->getStorage('node');
@@ -179,6 +179,8 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
     foreach (array_reverse($vids) as $vid) {
       /** @var \Drupal\node\NodeInterface $revision */
       $revision = $node_storage->loadRevision($vid);
+      // Only show revisions that are affected by the language that is being
+      // displayed.
       if ($revision->hasTranslation($langcode) && $revision->getTranslation($langcode)->isRevisionTranslationAffected()) {
         $username = [
           '#theme' => 'username',
