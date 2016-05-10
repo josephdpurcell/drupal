@@ -70,15 +70,15 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
     $build = [
       '#theme' => 'node_add_list',
       '#cache' => [
-        'tags' => $this->entityManager()->getDefinition('node_type')->getListCacheTags(),
+        'tags' => $this->entityTypeManager()->getDefinition('node_type')->getListCacheTags(),
       ],
     ];
 
     $content = array();
 
     // Only use node types the user has access to.
-    foreach ($this->entityManager()->getStorage('node_type')->loadMultiple() as $type) {
-      $access = $this->entityManager()->getAccessControlHandler('node')->createAccess($type->id(), NULL, [], TRUE);
+    foreach ($this->entityTypeManager()->getStorage('node_type')->loadMultiple() as $type) {
+      $access = $this->entityTypeManager()->getAccessControlHandler('node')->createAccess($type->id(), NULL, [], TRUE);
       if ($access->isAllowed()) {
         $content[$type->id()] = $type;
       }
@@ -106,7 +106,7 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
    *   A node submission form.
    */
   public function add(NodeTypeInterface $node_type) {
-    $node = $this->entityManager()->getStorage('node')->create(array(
+    $node = $this->entityTypeManager()->getStorage('node')->create(array(
       'type' => $node_type->id(),
     ));
 
@@ -125,8 +125,8 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
    *   An array suitable for drupal_render().
    */
   public function revisionShow($node_revision) {
-    $node = $this->entityManager()->getStorage('node')->loadRevision($node_revision);
-    $node_view_controller = new NodeViewController($this->entityManager, $this->renderer);
+    $node = $this->entityTypeManager()->getStorage('node')->loadRevision($node_revision);
+    $node_view_controller = new NodeViewController($this->entityManager(), $this->renderer);
     $page = $node_view_controller->view($node);
     unset($page['nodes'][$node->id()]['#cache']);
     return $page;
@@ -142,7 +142,7 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
    *   The page title.
    */
   public function revisionPageTitle($node_revision) {
-    $node = $this->entityManager()->getStorage('node')->loadRevision($node_revision);
+    $node = $this->entityTypeManager()->getStorage('node')->loadRevision($node_revision);
     return $this->t('Revision of %title from %date', array('%title' => $node->label(), '%date' => format_date($node->getRevisionCreationTime())));
   }
 
@@ -161,7 +161,7 @@ class NodeController extends ControllerBase implements ContainerInjectionInterfa
     $langname = $this->languageManager()->getLanguageName($langcode);
     $languages = $node->getTranslationLanguages();
     $has_translations = (count($languages) > 1);
-    $node_storage = $this->entityManager()->getStorage('node');
+    $node_storage = $this->entityTypeManager()->getStorage('node');
     $type = $node->getType();
 
     $build['#title'] = $has_translations ? $this->t('@langname revisions for %title', ['@langname' => $langname, '%title' => $node->label()]) : $this->t('Revisions for %title', ['%title' => $node->label()]);
