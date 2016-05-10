@@ -315,4 +315,22 @@
     }
   }
 
+  $(document).on('state:required', function (e) {
+    if (e.trigger) {
+      // When the "required" attribute is set/removed, editors have to be
+      // re-initialized because they may have special handling of that state.
+      if (Drupal.behaviors.editor && drupalSettings.editor) {
+        var $wrapper = $(e.target).closest('.js-text-format-wrapper');
+        if ($wrapper.size()) {
+        var $formatSelector = $wrapper.find('[data-editor-for]');
+          if ($formatSelector.size() && $formatSelector.findOnce('editor').size()) {
+            var context = $formatSelector.parent().get(0);
+            Drupal.behaviors.editor.detach(context, drupalSettings, 're-initialize');
+            Drupal.behaviors.editor.attach(context, drupalSettings);
+          }
+        }
+      }
+    }
+  });
+
 })(jQuery, Drupal, drupalSettings);
